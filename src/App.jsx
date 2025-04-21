@@ -2,15 +2,15 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Vapi from '@vapi-ai/web';
-import { Mic, Loader2, Waves } from 'lucide-react';
+import { Mic, Loader2, Waves, Square } from 'lucide-react';
 
 const App = () => {
   const vapiRef = useRef(null);
   const [isListening, setIsListening] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isActive, setIsActive] = useState(false); // Track if assistant is on or off
 
-  // ✅ Env variables
   const apiKey = import.meta.env.VITE_VAPI_API_KEY;
   const assistantId = import.meta.env.VITE_VAPI_ASSISTANT_ID;
 
@@ -21,22 +21,24 @@ const App = () => {
     vapi.on('start', () => {
       setIsListening(true);
       setIsAnalyzing(false);
+      setIsSpeaking(false);
     });
 
     vapi.on('transcript', () => {
       setIsListening(false);
-      setIsAnalyzing(true); // after user's voice is captured
+      setIsAnalyzing(true);
     });
 
     vapi.on('response', () => {
       setIsAnalyzing(false);
-      setIsSpeaking(true); // AI starts speaking
+      setIsSpeaking(true);
     });
 
     vapi.on('end', () => {
       setIsListening(false);
       setIsAnalyzing(false);
       setIsSpeaking(false);
+      setIsActive(false); // turn off on end
     });
 
     return () => {
@@ -46,12 +48,15 @@ const App = () => {
     };
   }, [apiKey]);
 
-  const handleMicClick = () => {
-    if (vapiRef.current) {
-      setIsListening(true);
-      setIsSpeaking(false);
-      setIsAnalyzing(false);
-      vapiRef.current.start(assistantId);
+  const handleMicToggle = () => {
+    if (!isActive) {
+      // start
+      setIsActive(true);
+      vapiRef.current?.start(assistantId);
+    } else {
+      // stop
+      vapiRef.current?.stop();
+      setIsActive(false);
     }
   };
 
@@ -64,38 +69,34 @@ const App = () => {
         </p>
 
         <button
-          onClick={handleMicClick}
+          onClick={handleMicToggle}
           className={`w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto rounded-full text-white shadow-lg transition-all duration-300
-          ${
-            isSpeaking
-              ? 'bg-orange-500 animate-pulse shadow-orange-400'
-              : 'bg-teal-500 hover:bg-teal-600'
-          }`}
+          ${isSpeaking ? 'bg-orange-500 animate-pulse shadow-orange-400' : isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-teal-500 hover:bg-teal-600'}
+        `}
         >
           {isListening ? (
             <Loader2 className="animate-spin w-6 h-6 sm:w-8 sm:h-8" />
           ) : isSpeaking ? (
             <Waves className="w-6 h-6 sm:w-8 sm:h-8" />
+          ) : isActive ? (
+            <Square className="w-6 h-6 sm:w-8 sm:h-8" /> // stop icon
           ) : (
-            <Mic className="w-6 h-6 sm:w-8 sm:h-8" />
+            <Mic className="w-6 h-6 sm:w-8 sm:h-8" /> // start icon
           )}
         </button>
 
-        {/* Text Feedback Below Mic */}
+        {/* Status Messages */}
         {isListening && (
-          <p className="mt-4 text-sm text-teal-800 font-semibold animate-pulse">
-            Listening...
-          </p>
+          <p className="mt-4 text-sm text-teal-800 font-semibold animate-pulse">Listening...</p>
         )}
         {isAnalyzing && (
-          <p className="mt-4 text-sm text-blue-700 font-semibold animate-pulse">
-            Analyzing your input...
-          </p>
+          <p className="mt-4 text-sm text-blue-700 font-semibold animate-pulse">Analyzing...</p>
         )}
         {isSpeaking && (
-          <p className="mt-4 text-sm text-orange-700 font-semibold animate-pulse">
-            Responding...
-          </p>
+          <p className="mt-4 text-sm text-orange-700 font-semibold animate-pulse">Responding...</p>
+        )}
+        {!isActive && !isListening && !isSpeaking && !isAnalyzing && (
+          <p className="mt-4 text-sm text-gray-600">Tap the mic to start talking</p>
         )}
       </div>
     </div>
@@ -103,3 +104,4 @@ const App = () => {
 };
 
 export default App;
+
